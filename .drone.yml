@@ -11,7 +11,20 @@ server:
   region: lon1
 
 steps:
-- name: greeting
+
+- name: A
   commands:
   - echo hello world
+
+- name: B
+  commands:
+  - echo supah blah
+
+- name: C
+  commands:
+  - echo all done
+  depends_on:
+  - A
+  - B
+
 
