@@ -1,0 +1,73 @@
+{{ if .Values.service.jenkins_runner }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.resourcePrefix }}jenkins-runner
+  labels:
+    app.service: {{ .Values.resourcePrefix }}jenkins-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.service: {{ .Values.resourcePrefix }}jenkins-runner
+  template:
+    metadata:
+      labels:
+        app.service: {{ .Values.resourcePrefix }}jenkins-runner
+    spec:
+      containers:
+      - env:
+        {{- range $key, $value := index .Values.docker.services "php-base" "environment" }}
+        {{- $tp := typeOf $value }}
+        - name: {{ $key | quote }}
+        {{- if eq $tp "string" }}
+          value: {{ tpl $value $ | quote }}
+        {{- else }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- range $key, $value := index .Values.docker.services "jenkins-runner" "environment" }}
+        {{- $tp := typeOf $value }}
+        - name: {{ $key | quote }}
+        {{- if eq $tp "string" }}
+          value: {{ tpl $value $ | quote }}
+        {{- else }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- range $key, $value := .Values.environment }}
+        - name: {{ $key | quote }}
+          value: {{ $value | quote }}
+        {{- end }}
+        image: {{ .Values.docker.image.jenkins_runner }}
+        imagePullPolicy: Always
+        name: jenkins-runner
+        resources:
+          limits:
+            memory: {{ .Values.resources.limits.memory.jenkins_runner }}
+          requests:
+            memory: {{ .Values.resources.requests.memory.jenkins_runner }}
+        readinessProbe:
+          exec:
+            command:
+            - app
+            - state
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        volumeMounts:
+        {{- if not (and (eq "" (include "application.volumeMounts.backend" .)) (eq "" (include "application.volumeMounts.all" .)) ) }}
+        {{- include "application.volumeMounts.backend" . | indent 8 }}
+        {{- include "application.volumeMounts.all" . | indent 8 }}
+        {{- else }} []
+        {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.resourcePrefix }}docker-config
+      restartPolicy: Always
+      volumes:
+      {{- if not (and (eq "" (include "application.volumes.backend" .)) (eq "" (include "application.volumes.all" .)) ) }}
+      {{- include "application.volumes.backend" . | indent 6 }}
+      {{- include "application.volumes.all" . | indent 6 }}
+      {{- else }} []
+      {{- end }}
+status: {}
+{{ end }}

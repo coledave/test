@@ -1,0 +1,10 @@
+workspace('ci-spryker-sample-static'):
+  description: generated local workspace for ci-spryker-sample.
+  harness: inviqa/spryker
+
+attribute('app.build'): static
+
+attribute('aws.bucket'): null
+attribute('app.repository'): null
+attribute('aws.id'): null
+attribute('aws.key'): null

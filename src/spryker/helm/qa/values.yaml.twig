@@ -1,0 +1,25 @@
+{% set hosts_env = {} %}
+{% for store, yves_external_host in @('pipeline.qa.yves.external_hosts') %}
+{% set hosts_env = hosts_env|merge({('YVES_HOST_' ~ store): yves_external_host}) %}
+{% endfor %}
+{% for store, glue_external_host in @('pipeline.qa.glue.external_hosts') %}
+{% set hosts_env = hosts_env|merge({('GLUE_HOST_' ~ store): glue_external_host}) %}
+{% endfor %}
+{% if @('pipeline.qa.persistence') %}
+  persistence:
+{{ to_nice_yaml(@('pipeline.qa.persistence'), 2, 4) | raw }}
+{% endif %}
+{% set additional_services = {
+  'php-base': {
+    'environment': hosts_env
+  },
+  'nginx': {
+    'environment': hosts_env
+  }
+} %}
+{{ @('workspace.name') }}:
+  docker:
+    services:
+{{ deep_merge_to_yaml([@('pipeline.qa.services'), additional_services], 2, 6) | raw }}
+
+  resourcePrefix: ""

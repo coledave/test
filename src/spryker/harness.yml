@@ -1,0 +1,203 @@
+---
+harness('inviqa/spryker'):
+  description: A docker based development environment for Spryker
+  require:
+    services:
+      - proxy
+    confd:
+      - harness:/
+---
+attributes:
+  app:
+    web_owner: www-data
+    web_group: www-data
+    web_writable_dirs:
+      - '/app/data'
+    services:
+      - chrome
+      - postgres
+      - redis
+      - elasticsearch
+      - rabbitmq
+      - jenkins
+      - jenkins-runner
+    data_directory: /app/data
+  spryker:
+    salt: 2tkqCCRKy5rT4wMVz8KTCh8r3sJGkL5v
+    demoshop-url: https://github.com/spryker-shop/b2c-demo-shop.git
+    mode: development
+  php:
+    version: 7.2
+  database:
+    platform: postgres
+    host: postgres
+    user: spryker
+    pass: spryker
+    name: spryker
+  backend:
+    build:
+      when: 'true'
+      steps:
+        - task "spryker:build"
+    install:
+      steps:
+        - task "rabbitmq:vhosts"
+        - task "http:wait" $JENKINS_URL
+        - task "spryker:install" 
+        - task "overlay:apply"
+    init:
+      steps:
+        - task "http:wait" $JENKINS_URL
+        - task "rabbitmq:vhosts"
+        - task "spryker:init"
+    migrate:
+      steps:
+        - task "spryker:migrate"
+  frontend:
+    yves:
+      watch: npm run yves:watch
+    zed:
+      watch: npm run zed:watch
+    build:
+      when: -f "package.json"
+      steps:
+        - run "vendor/bin/install -r docker -s frontend"
+  docker:
+    image:
+      console: = 'my127/spryker:' ~ @('php.version') ~ '-fpm-stretch-console'
+      php-fpm: = 'my127/spryker:' ~ @('php.version') ~ '-fpm-stretch'
+  elasticsearch:
+    host: elasticsearch
+    port: 9200
+    image: elasticsearch
+    tag: 5.6
+  redis:
+    host: redis
+    port: 6379
+    protocol: redis
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    api_port: 15672
+    user: spryker
+    password: spryker
+    vhosts:
+      DE: = 'de-spryker'
+      AT: = 'at-spryker'
+      US: = 'us-spryker'
+    external_host: = 'rabbitmq-' ~ @('hostname')
+  jenkins:
+    host: jenkins
+    port: 8080
+    external_host: = 'jenkins-' ~ @('hostname')
+  yves:
+    external_hosts:
+      DE: = 'yves-de-' ~ @('hostname')
+      AT: = 'yves-at-' ~ @('hostname')
+      US: = 'yves-us-' ~ @('hostname')
+  zed:
+    external_host: = 'zed-' ~ @('hostname')
+  glue:
+    external_hosts:
+      DE: = 'glue-de-' ~ @('hostname')
+      AT: = 'glue-at-' ~ @('hostname')
+      US: = 'glue-us-' ~ @('hostname')
+  smtp:
+    host: 'mailhog'
+    port: 1025
+  nginx:
+    global:
+      conf:
+        server_names_hash_bucket_size: 128
+  pipeline:
+    preview:
+      yves:
+        external_hosts:
+          DE: = 'yves-de-' ~ @('pipeline.preview.hostname')
+          AT: = 'yves-at-' ~ @('pipeline.preview.hostname')
+          US: = 'yves-us-' ~ @('pipeline.preview.hostname')
+      zed:
+        external_host: = 'zed-' ~ @('pipeline.preview.hostname')
+      glue:
+        external_hosts:
+          DE: = 'glue-de-' ~ @('pipeline.preview.hostname')
+          AT: = 'glue-at-' ~ @('pipeline.preview.hostname')
+          US: = 'glue-us-' ~ @('pipeline.preview.hostname')
+      rabbitmq:
+        external_host: = 'rabbitmq-' ~ @('pipeline.preview.hostname')
+      jenkins:
+        external_host: = 'jenkins-' ~ @('pipeline.preview.hostname')
+      smtp:
+        host: mailhog.kube-system.svc.cluster.local
+      resourcePrefix: ~
+    qa:
+      yves:
+        external_hosts:
+          DE: = 'yves-de-' ~ @('pipeline.qa.hostname')
+          AT: = 'yves-at-' ~ @('pipeline.qa.hostname')
+          US: = 'yves-us-' ~ @('pipeline.qa.hostname')
+      zed:
+        external_host: = 'zed-' ~ @('pipeline.qa.hostname')
+      glue:
+        external_hosts:
+          DE: = 'glue-de-' ~ @('pipeline.qa.hostname')
+          AT: = 'glue-at-' ~ @('pipeline.qa.hostname')
+          US: = 'glue-us-' ~ @('pipeline.qa.hostname')
+      rabbitmq:
+        external_host: = 'rabbitmq-' ~ @('pipeline.qa.hostname')
+      jenkins:
+        external_host: = 'jenkins-' ~ @('pipeline.qa.hostname')
+      smtp:
+        host: mailhog.kube-system.svc.cluster.local
+
+  helm:
+    timeout: 900
+
+  php-fpm:
+    entrypoint:
+      steps:
+        - echo "$(getent hosts nginx | awk '{ print $1 }') $ZED_HOST" >> /etc/hosts
+
+  persistence:
+    enabled: false
+    spryker:
+      data:
+        claimName: spryker-data-pvc
+        mountPath: = @('app.data_directory')
+        accessMode: ReadWriteMany # the requirement if persistence is enabled
+        #storageClass: "..." most clusters need a custom storageclass
+        #hostPath: "..." alternatively for single node testing
+        size: 1Gi
+    redis:
+      enabled: true
+
+  resources:
+    requests:
+      memory:
+        jenkins_runner: "256Mi"
+        jenkins: "1536Mi"
+        rabbitmq: "128Mi"
+    limits:
+      memory:
+        jenkins_runner: "256Mi"
+        jenkins: "1536Mi"
+        rabbitmq: "128Mi"
+  
+---
+command('frontend yves watch'):
+  env:
+    COMPOSE_PROJECT_NAME: = @('namespace')
+  exec: |
+    #!bash(workspace:/)|@
+    passthru "docker-compose exec -u build console bash -i -c 'cd @('frontend.path'); @('frontend.yves.watch')'"
+command('frontend zed watch'):
+  env:
+    COMPOSE_PROJECT_NAME: = @('namespace')
+  exec: |
+    #!bash(workspace:/)|@
+    passthru "docker-compose exec -u build console bash -i -c 'cd @('frontend.path'); @('frontend.zed.watch')'"
+---
+import:
+  - harness/config/*.yml
+  - harness/attributes/*.yml
+  - harness/attributes/environment/={env('MY127WS_ENV','local')}.yml

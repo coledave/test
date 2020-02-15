@@ -1,0 +1,39 @@
+attributes:
+  akeneo:
+    app:
+      mode: dev # dev or prod
+  resources:
+    requests:
+      memory:
+        job_queue_consumer: "1024Mi"
+        cron: "1024Mi"
+    limits:
+      memory:
+        job_queue_consumer: "1024Mi"
+        cron: "1024Mi"
+  nginx:
+    copy_directories:
+     - = @('app.web_directory')
+     - = @('app.vendor_directory')
+     - /app/src/Resources
+  services:
+    php-base:
+      environment:
+        AKENEO_SECRET: = @('akeneo.secret')
+        AKENEO_APP_MODE:  = @('akeneo.app.mode')
+    job-queue-consumer:
+      environment:
+        AUTOSTART_AKENEO_JOB_QUEUE_CONSUMER: "true"
+        AKENEO_JOB_QUEUE_CONSUMER_PROCESSES: 5
+  pipeline:
+    base:
+      services:
+        php-base:
+          environment:
+            APP_HOST: = @('pipeline.base.hostname')
+            PHP_IDE_CONFIG: = ''
+    qa:
+      services:
+        php-base:
+          environment:
+            APP_HOST: = @('pipeline.qa.hostname')

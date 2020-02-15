@@ -1,0 +1,13 @@
+workspace('ci-magento1-sample-static'):
+  description: generated local workspace for ci-magento1-sample.
+  harness: inviqa/magento1
+
+attribute('app.build'): static
+
+attribute('aws.bucket'): null
+attribute('app.repository'): null
+attribute('aws.id'): null
+attribute('aws.key'): null
+
+attribute('composer.auth.github'): = decrypt("YTozOntpOjA7czo3OiJkZWZhdWx0IjtpOjE7czoyNDoiZfbsRN210rxOzGyHhH74tuXtFxak6prxIjtpOjI7czo1Njoi7NjB2oXZJ3/wQsccea2VPeYEjU72koVub89ezkdQzAzOaaFwD2Rm1pbhWXR7aYgpUdXmNmO8g5YiO30=")
+attribute('magento.crypt.key'): = decrypt("YTozOntpOjA7czo3OiJkZWZhdWx0IjtpOjE7czoyNDoilgJeTB/QoWsOaDu74sRFvXiIAsSAIfVRIjtpOjI7czo0ODoiHMe0ICA3OLQybUjQi1VCvd2vFnetM+hUEs9PzZ27Q7yOd0UFmHohTnLNqplJfbUnIjt9")

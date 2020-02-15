@@ -1,0 +1,112 @@
+---
+harness('inviqa/akeneo'):
+  description: A docker based development environment for akeneo
+  require:
+    services:
+      - proxy
+    confd:
+      - harness:/
+---
+attributes:
+  app:
+    web_owner: www-data
+    web_group: www-data
+    web_writable_dirs:
+      - = @('uploads_directory')
+    services:
+      - chrome
+      - elasticsearch
+      - mysql
+      - job-queue-consumer
+      - cron
+    file_storage_directory: /app/app/file_storage
+    uploads_directory: /app/app/uploads
+    web_directory: /app/web
+    src_resources_directory: /app/src/Resources
+    vendor_directory: /app/vendor
+  akeneo:
+    secret: AMjnA6QnWfkZ9s8vB2XXLALXuxZm7fmC
+  php:
+    version: 7.2
+  database:
+    user: akeneo
+    pass: akeneo
+    name: akeneo
+    import:
+      steps:
+        - passthru "echo 'Importing database file'"
+        - run "set -e -o pipefail; pv --force \"$1\" | zcat | mysql -h \"$DB_HOST\" -u \"$DB_ADMIN_USER\" -p\"$DB_ADMIN_PASS\" \"$DB_NAME\""
+        - passthru "bin/console doctrine:schema:update --force"
+        - passthru "echo 'Reindexing Elasticsearch'"
+        - run "bin/console akeneo:elasticsearch:reset-indexes -n"
+        - run "bin/console pim:product:index --all"
+        - passthru "echo 'Clearing cache'"
+        - run "bin/console c:c"
+        - passthru "echo 'Done'"
+  backend:
+    build:
+      steps:
+        - task "composer:install"
+    install:
+      steps:
+        - run "bin/console pim:install --force --symlink"
+        - run "yarn run webpack-dev"
+        - task "overlay:apply"
+        - task "assets:dump"
+    init:
+      steps:
+        - run "bin/console --env=prod doctrine:schema:update --force"
+        - run "bin/console akeneo:elasticsearch:reset-indexes"
+        - run "bin/console pim:product:index --all"
+    migrate:
+      steps: []
+    cron:
+      jobs:
+        - 30 1 * * * /cron-run-with-env.sh /app/bin/console pim:versioning:refresh --env=prod
+        - 0 2 * * * /cron-run-with-env.sh /app/bin/console pim:completeness:calculate --env=prod
+        - 20 0 1 * * /cron-run-with-env.sh /app/bin/console akeneo:batch:purge-job-execution --env=prod
+        - 0 1 * * * /cron-run-with-env.sh /app/bin/console pim:asset:send-expiration-notification --env=prod
+        - 30 4 * * * /cron-run-with-env.sh /app/bin/console pim:volume:aggregate --env=prod
+        - 0 4 * * * /cron-run-with-env.sh /app/bin/console pim:versioning:purge --more-than-days 90 --no-interaction --force --env=prod
+        - 0 5 * * * /cron-run-with-env.sh /app/bin/console akeneo:rule:run --env=prod
+        - 20 0 * * * /cron-run-with-env.sh /app/bin/console pimee:project:notify-before-due-date --env=prod
+        - 0 2 * * * /cron-run-with-env.sh /app/bin/console pimee:project:recalculate --env=prod
+        - 30 */1 * * * /cron-run-with-env.sh /app/bin/console pimee:franklin-insights:fetch-products --env=prod
+        - 0 23 * * * /cron-run-with-env.sh /app/bin/console akeneo:reference-entity:refresh-records --all --env=prod
+  frontend:
+    path: /app
+    build:
+      when: -f "package.json"
+      steps:
+        - run "yarn install"
+        - run "bin/console --env=prod pim:installer:assets --symlink"
+        - run "yarn run webpack-dev"
+  docker:
+    image:
+      console: = 'my127/akeneo:' ~ @('php.version') ~ '-fpm-stretch-console'
+      php-fpm: = 'my127/akeneo:' ~ @('php.version') ~ '-fpm-stretch'
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss
+    tag: 6.5.4
+  persistence:
+    enabled: false
+    akeneo:
+      file_storage:
+        claimName: akeneo-file-storage-pvc
+        mountPath: = @('app.file_storage_directory')
+        accessMode: ReadWriteMany # the requirement if persistence is enabled
+        #storageClass: "..." most clusters need a custom storageclass
+        #hostPath: "..." alternatively for single node testing
+        size: 1Gi
+      uploads:
+        claimName: akeneo-uploads-pvc
+        mountPath: = @('app.uploads_directory')
+        accessMode: ReadWriteMany # the requirement if persistence is enabled
+        #storageClass: "..." most clusters need a custom storageclass
+        #hostPath: "..." alternatively for single node testing
+        size: 1Gi
+---
+import:
+  - harness/config/*.yml
+  - harness/attributes/*.yml
+  - harness/attributes/environment/={env('MY127WS_ENV','local')}.yml

@@ -1,0 +1,84 @@
+---
+harness('inviqa/drupal8'):
+  description: A docker based development environment for drupal8
+  require:
+    services:
+      - proxy
+    confd:
+      - harness:/
+---
+attributes:
+  app:
+    web_owner: www-data
+    web_group: www-data
+    web_writable_dirs:
+      - '/app/config'
+      - '/app/docroot/modules'
+      - '/app/docroot/profiles'
+      - '/app/docroot/sites/default/files'
+    services:
+      - chrome
+      - mysql
+      - redis
+    web_directory: = '/app/' ~ @('drupal.docroot')
+    files_directory: = @('app.web_directory') ~ '/sites/default/files'
+  drupal:
+    salt: 2tkqCCRKy5rT4wMVz8KTCh8r3sJGkL5v
+    docroot: docroot
+  php:
+    version: 7.2
+  database:
+    user: drupal
+    pass: drupal
+    name: drupal
+  backend:
+    build:
+      steps:
+        - task "composer:install"
+    install:
+      steps:
+        - |
+          passthru "drupal site:install standard \
+              --langcode=en \
+              \
+              --db-type=mysql \
+              --db-host=${DB_HOST} \
+              --db-name=${DB_NAME} \
+              --db-user=${DB_USER} \
+              --db-pass=${DB_PASS} \
+              --db-port=3306 \
+              \
+              --site-name=Drupal \
+              --site-mail=admin@example.com \
+              \
+              --account-name=admin \
+              --account-mail=admin@example.com \
+              --account-pass=admin123"
+        - run "chmod 755 /app/docroot/sites/default"
+        - task "overlay:apply"
+        - task "assets:dump"
+    migrate:
+      steps:
+        - run "drupal cache:rebuild"
+        - run "drupal update:entities"
+        - run "drupal update:execute"
+        - run "drupal cache:rebuild"
+  docker:
+    image:
+      console: = 'my127/drupal8:' ~ @('php.version') ~ '-fpm-stretch-console'
+      php-fpm: = 'my127/drupal8:' ~ @('php.version') ~ '-fpm-stretch'
+  persistence:
+    enabled: false
+    drupal:
+      files:
+        claimName: drupal-files-pvc
+        mountPath: = @('app.files_directory')
+        accessMode: ReadWriteMany # the requirement if persistence is enabled
+        #storageClass: "..." most clusters need a custom storageclass
+        #hostPath: "..." alternatively for single node testing
+        size: 1Gi
+---
+import:
+  - harness/config/*.yml
+  - harness/attributes/*.yml
+  - harness/attributes/environment/={env('MY127WS_ENV','local')}.yml

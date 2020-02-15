@@ -1,0 +1,42 @@
+{{ if .Values.service.rabbitmq }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.resourcePrefix }}rabbitmq
+  labels:
+    app.service: {{ .Values.resourcePrefix }}rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.service: {{ .Values.resourcePrefix }}rabbitmq
+  template:
+    metadata:
+      labels:
+        app.service: {{ .Values.resourcePrefix }}rabbitmq
+    spec:
+      containers:
+      - env:
+        {{- range $key, $value := .Values.docker.services.rabbitmq.environment }}
+        - name: {{ $key | quote }}
+          value: {{ $value | quote }}
+        {{- end }}
+        image: rabbitmq:3.7-management-alpine
+        imagePullPolicy: Always
+        name: rabbitmq
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        resources:
+          limits:
+            memory: {{ .Values.resources.limits.memory.rabbitmq }}
+          requests:
+            memory: {{ .Values.resources.requests.memory.rabbitmq }}
+        readinessProbe:
+          tcpSocket:
+            port: 5672
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      restartPolicy: Always
+status: {}
+{{ end }}
