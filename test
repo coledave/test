@@ -38,8 +38,6 @@ function test()
       ws exec composer test-acceptance
     fi
 
-    ws helm template qa >/dev/null
-
     ws disable
     ws enable
 )
