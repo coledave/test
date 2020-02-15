@@ -1,10 +1,12 @@
 kind: pipeline
+type: digitalocean
 name: default
+
+token:
+  from_secret: token
 
 steps:
 - name: greeting
-  image: alpine
   commands:
-  - echo hello
-  - echo world
+  - echo hello world
 
