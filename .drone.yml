@@ -7,8 +7,9 @@ server:
   size: s-4vcpu-8gb
   region: lon1
 steps:
-- name: setup
+- name: dependencies
   commands:
+  - apt install php-cli
   - wget https://github.com/my127/workspace/releases/download/0.1.3/ws
   - chmod +x ws
   - mv ws /usr/local/bin
