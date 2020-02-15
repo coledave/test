@@ -5,6 +5,11 @@ name: default
 token:
   from_secret: token
 
+server:
+  image: docker-18-04
+  size: s-1vcpu-1gb
+  region: lon1
+
 steps:
 - name: greeting
   commands:
