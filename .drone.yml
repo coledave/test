@@ -1,30 +1,44 @@
 kind: pipeline
 type: digitalocean
-name: default
-
+name: A
 token:
   from_secret: token
-
 server:
   image: docker-18-04
   size: s-1vcpu-1gb
   region: lon1
-
 steps:
-
-- name: A
+- name: greeting
   commands:
   - echo hello world
-
-- name: B
+---
+kind: pipeline
+type: digitalocean
+name: B
+token:
+  from_secret: token
+server:
+  image: docker-18-04
+  size: s-1vcpu-1gb
+  region: lon1
+steps:
+- name: greeting
   commands:
-  - echo supah blah
-
-- name: C
+  - echo hello world
+---
+kind: pipeline
+type: digitalocean
+name: Done 
+token:
+  from_secret: token
+server:
+  image: docker-18-04
+  size: s-1vcpu-1gb
+  region: lon1
+steps:
+- name: greeting
   commands:
   - echo all done
-  depends_on:
-  - A
-  - B
-
-
+depends_on:
+- A
+- B
