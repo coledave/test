@@ -10,7 +10,7 @@ local Harness(platform, mode) = {
         size:   "s-4vcpu-8gb",
         region: "lon1"
     },
-    
+
     steps: [
     {
         name: "dependencies",
@@ -41,6 +41,6 @@ local Harness(platform, mode) = {
     Harness("drupal8", "dynamic"),
     Harness("drupal8", "static"),
 
-    Harness("wordpress", "static"),
+    Harness("wordpress", "dynamic"),
     Harness("wordpress", "static"),
 ]
